@@ -1,6 +1,6 @@
-import { Sparkles, Search, CheckCircle, Lightbulb, Copy, Share2 } from 'lucide-react';
+import { Sparkles, Search, CheckCircle, Lightbulb, Copy, Share2, RotateCcw } from 'lucide-react';
 
-function InfoPanel({ appState, detectionResult, funFactData, error, onCopyFact }) {
+function InfoPanel({ appState, detectionResult, funFactData, error, onCopyFact, onRestartScan }) {
   const isIdle = appState === 'idle';
   const isAnalyzing = appState === 'analyzing';
   const isResult = appState === 'result';
@@ -109,6 +109,14 @@ function InfoPanel({ appState, detectionResult, funFactData, error, onCopyFact }
           <Share2 size={14} />
           <span>Salin dan bagikan ke teman!</span>
         </div>
+
+        <button 
+          className="restart-btn"
+          onClick={onRestartScan}
+        >
+          <RotateCcw size={18} />
+          <span>Scan Lagi</span>
+        </button>
       </div>
     );
   };

@@ -169,7 +169,10 @@ body {
 }
 
 .camera-wrapper .hidden {
-  display: none !important;
+  opacity: 0;
+  visibility: hidden;
+  position: absolute;
+  pointer-events: none;
 }
 
 .camera-placeholder {
@@ -580,6 +583,34 @@ input[type="range"]::-webkit-slider-thumb:hover {
   padding: 0.375rem;
   color: var(--text-muted);
   font-size: 0.75rem;
+}
+
+.restart-btn {
+  margin-top: 1.5rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.restart-btn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.restart-btn:active {
+  transform: translateY(0);
 }
 
 .footer {

@@ -33,7 +33,7 @@ export class CameraService {
     const facingMode = cameraType === 'front' ? 'user' : 'environment';
     const constraints = {
       video: {
-        facingMode: facingMode,
+        facingMode: { ideal: facingMode },
         frameRate: { ideal: this.fps }
       }
     };

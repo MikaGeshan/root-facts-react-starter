@@ -19,10 +19,10 @@ function CameraSection({
 
   useEffect(() => {
     if (services.camera) {
-      if (videoRef.current && !services.camera.video) {
+      if (videoRef.current) {
         services.camera.setVideoElement(videoRef.current);
       }
-      if (canvasRef.current && !services.camera.canvas) {
+      if (canvasRef.current) {
         services.camera.setCanvasElement(canvasRef.current);
       }
     }

@@ -12,6 +12,7 @@ export class RootFactsService {
     // Konfigurasi lingkungan Transformers.js
     env.allowLocalModels = false;
     env.useBrowserCache = true;
+    env.logLevel = 'error';
   }
 
   // [Basic] Muat model dan inisialisasi pipeline text2text-generation

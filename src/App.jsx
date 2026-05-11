@@ -13,7 +13,7 @@ function App() {
   const detectionCleanupRef = useRef(null);
   const isRunningRef = useRef(false);
   const [currentTone, setCurrentTone] = useState('normal');
-  const [fps, setFps] = useState(30);
+  const [fps, setFps] = useState(15);
   const lastDetectionTimeRef = useRef(0);
 
   // [Basic] Inisialisasi layanan deteksi, kamera, dan generator fakta saat aplikasi dimuat
@@ -56,13 +56,28 @@ function App() {
     };
   }, []);
 
+  // [Basic] Fungsi untuk menghentikan kamera dan loop deteksi
+  const stopCamera = useCallback(() => {
+    const { camera } = state.services;
+    isRunningRef.current = false;
+    if (detectionCleanupRef.current) {
+      cancelAnimationFrame(detectionCleanupRef.current);
+      detectionCleanupRef.current = null;
+    }
+    if (camera) {
+      camera.stopCamera();
+    }
+    actions.setRunning(false);
+  }, [state.services, actions]);
+
   // [Basic] Fungsi untuk memulai loop deteksi
   const runDetectionLoop = useCallback(async (time) => {
     const { detector, camera, generator } = state.services;
     if (!detector || !camera || !isRunningRef.current) return;
 
     // [Skilled] Fitur FPS Limit: Throttling detection loop
-    const interval = 1000 / fps;
+    // Tambahkan delay minimum 100ms agar CPU tidak membengkak
+    const interval = Math.max(1000 / fps, 100);
     if (time - lastDetectionTimeRef.current >= interval) {
       lastDetectionTimeRef.current = time;
 
@@ -82,9 +97,13 @@ function App() {
                 const fact = await generator.generateFacts(result.className);
                 actions.setFunFactData(fact);
                 actions.setAppState('result');
+                
+                // [Solution] Hentikan webcam setelah berhasil mendapatkan deskripsi
+                stopCamera();
               } catch (error) {
                 actions.setFunFactData('error');
                 actions.setAppState('result');
+                stopCamera();
               }
             }
           }
@@ -97,36 +116,56 @@ function App() {
     if (isRunningRef.current) {
       detectionCleanupRef.current = requestAnimationFrame(runDetectionLoop);
     }
-  }, [state.services, state.appState, actions, fps]);
+  }, [state.services, state.appState, actions, fps, stopCamera]);
 
   // [Basic] Fungsi untuk memulai dan menghentikan kamera
-  const handleToggleCamera = async () => {
+  const handleToggleCamera = useCallback(async () => {
     const { camera } = state.services;
-    if (!camera) return;
+    if (!camera) {
+      console.error('Camera service not initialized');
+      return;
+    }
 
     if (state.isRunning) {
-      isRunningRef.current = false;
-      if (detectionCleanupRef.current) {
-        cancelAnimationFrame(detectionCleanupRef.current);
-      }
-      camera.stopCamera();
-      actions.setRunning(false);
+      console.log('Stopping camera...');
+      stopCamera();
       actions.resetResults();
     } else {
       try {
-        // [Basic] Fitur streaming kamera aktif
-        await camera.startCamera();
+        console.log('Starting camera...');
+        // [Solution] Update UI state first to unhide video element
         actions.setRunning(true);
         isRunningRef.current = true;
-        // Reset state for new scan
         actions.resetResults();
-        requestAnimationFrame(runDetectionLoop);
+        
+        // Ensure error is cleared
+        actions.setError(null);
+        
+        // Wait for React to commit the 'isRunning' state change
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Verify camera has video element
+        if (!camera.video) {
+          console.warn('Camera video element not set, waiting...');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        await camera.startCamera();
+        console.log('Camera started successfully');
+        
+        // Start detection loop
+        if (detectionCleanupRef.current) {
+          cancelAnimationFrame(detectionCleanupRef.current);
+        }
+        detectionCleanupRef.current = requestAnimationFrame(runDetectionLoop);
       } catch (error) {
         // [Rejected] Gagal meminta atau mengakses izin kamera
+        console.error('Camera activation failed:', error);
+        stopCamera();
         actions.setError(getCameraErrorMessage(error));
       }
     }
-  };
+  }, [state.services, state.isRunning, actions, stopCamera, runDetectionLoop]);
 
   // [Advance] Fungsi untuk mengubah nada fakta yang dihasilkan
   const handleToneChange = (tone) => {
@@ -168,8 +207,10 @@ function App() {
           funFactData={state.funFactData}
           error={state.error}
           onCopyFact={handleCopyFact}
+          onRestartScan={handleToggleCamera}
         />
       </main>
+
 
       <footer className="footer">
         <p>Powered by TensorFlow.js & Transformers.js</p>
