@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      injectRegister: 'inline',
       includeAssets: ['favicon.ico', 'icons/*.png', 'model/*'],
       manifest: {
         name: 'RootFacts - AI Vegetable Fun Facts',
