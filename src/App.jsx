@@ -7,11 +7,16 @@ import { DetectionService } from './services/DetectionService';
 import { CameraService } from './services/CameraService';
 import { RootFactsService } from './services/RootFactsService';
 import { getCameraErrorMessage } from './utils/common';
+import { APP_CONFIG, isValidDetection } from './utils/config';
 
 function App() {
   const { state, actions } = useAppState();
   const detectionCleanupRef = useRef(null);
   const isRunningRef = useRef(false);
+  const isAnalyzingRef = useRef(false);
+  const stabilityCounterRef = useRef(0);
+  const lastDetectedClassRef = useRef(null);
+
   const [currentTone, setCurrentTone] = useState('normal');
   const [fps, setFps] = useState(15);
   const lastDetectionTimeRef = useRef(0);
@@ -60,6 +65,10 @@ function App() {
   const stopCamera = useCallback(() => {
     const { camera } = state.services;
     isRunningRef.current = false;
+    isAnalyzingRef.current = false;
+    stabilityCounterRef.current = 0;
+    lastDetectedClassRef.current = null;
+
     if (detectionCleanupRef.current) {
       cancelAnimationFrame(detectionCleanupRef.current);
       detectionCleanupRef.current = null;
@@ -86,25 +95,55 @@ function App() {
           const result = await detector.predict(camera.video);
           if (result) {
             // [Basic] Menampilkan label hasil prediksi secara otomatis
-            actions.setDetectionResult(result);
-            
-            // [Basic] Aplikasi berhasil mengirimkan hasil deteksi ke AI secara dinamis
-            if (result.isValid && state.appState === 'idle') {
-              actions.setAppState('analyzing');
-              
-              try {
-                // Berhasil menampilkan teks Fun Fact unik yang relevan
-                const fact = await generator.generateFacts(result.className);
-                actions.setFunFactData(fact);
-                actions.setAppState('result');
-                
-                // [Solution] Hentikan webcam setelah berhasil mendapatkan deskripsi
-                stopCamera();
-              } catch (error) {
-                actions.setFunFactData('error');
-                actions.setAppState('result');
-                stopCamera();
+            // Hanya update hasil deteksi ke UI jika belum dalam proses analisis untuk mengurangi volatilitas
+            if (!isAnalyzingRef.current && state.appState !== 'result') {
+              actions.setDetectionResult(result);
+            }
+
+            // [Solution] Implementasi Stability Buffer untuk mencegah hasil yang terlalu dinamis
+            const isConfident = isValidDetection(result);
+
+            if (isConfident && state.appState === 'idle' && !isAnalyzingRef.current) {
+              // Cek apakah objek sama dengan deteksi sebelumnya
+              if (result.className === lastDetectedClassRef.current) {
+                stabilityCounterRef.current += 1;
+              } else {
+                stabilityCounterRef.current = 1;
+                lastDetectedClassRef.current = result.className;
               }
+
+              // [Skilled] Membutuhkan setidaknya 5 frame stabil (sekitar 0.5-1 detik) sebelum trigger AI
+              if (stabilityCounterRef.current >= 5) {
+                isAnalyzingRef.current = true;
+                actions.setAppState('analyzing');
+
+                // [Solution] Tambahkan delay sebelum generate untuk memastikan UI transisi dengan mulus
+                // dan memberikan waktu bagi pengguna untuk menstabilkan kamera
+                await new Promise((resolve) => setTimeout(resolve, APP_CONFIG.analyzingDelay));
+
+                try {
+                  // Berhasil menampilkan teks Fun Fact unik yang relevan
+                  const fact = await generator.generateFacts(result.className);
+
+                  // Pastikan kita masih dalam mode scanning sebelum mengupdate hasil
+                  if (isRunningRef.current) {
+                    actions.setFunFactData(fact);
+                    actions.setAppState('result');
+                    // [Solution] Hentikan webcam setelah berhasil mendapatkan deskripsi
+                    stopCamera();
+                  }
+                } catch (error) {
+                  console.error('Fact generation failed:', error);
+                  actions.setFunFactData('error');
+                  actions.setAppState('result');
+                  stopCamera();
+                } finally {
+                  isAnalyzingRef.current = false;
+                }
+              }
+            } else if (!isConfident) {
+              // Reset stability jika kepercayaan rendah
+              stabilityCounterRef.current = 0;
             }
           }
         } catch (error) {
@@ -133,26 +172,31 @@ function App() {
     } else {
       try {
         console.log('Starting camera...');
+        // Reset stability trackers
+        stabilityCounterRef.current = 0;
+        lastDetectedClassRef.current = null;
+        isAnalyzingRef.current = false;
+
         // [Solution] Update UI state first to unhide video element
         actions.setRunning(true);
         isRunningRef.current = true;
         actions.resetResults();
-        
+
         // Ensure error is cleared
         actions.setError(null);
-        
+
         // Wait for React to commit the 'isRunning' state change
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         // Verify camera has video element
         if (!camera.video) {
           console.warn('Camera video element not set, waiting...');
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         await camera.startCamera();
         console.log('Camera started successfully');
-        
+
         // Start detection loop
         if (detectionCleanupRef.current) {
           cancelAnimationFrame(detectionCleanupRef.current);
@@ -180,7 +224,7 @@ function App() {
     if (state.funFactData && state.funFactData !== 'error') {
       navigator.clipboard.writeText(state.funFactData)
         .then(() => alert('Fakta berhasil disalin!'))
-        .catch(err => console.error('Gagal menyalin:', err));
+        .catch((err) => console.error('Gagal menyalin:', err));
     }
   };
 

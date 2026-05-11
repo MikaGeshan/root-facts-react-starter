@@ -17,5 +17,6 @@ export const TONE_CONFIG = {
 
 export const isValidDetection = (result) => {
   const { detectionConfidenceThreshold } = APP_CONFIG;
-  return result && result.isValid && result.confidence >= detectionConfidenceThreshold;
+  const score = result?.score || 0;
+  return result && result.isValid && (score * 100) >= detectionConfidenceThreshold;
 };

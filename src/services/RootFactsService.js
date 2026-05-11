@@ -8,7 +8,7 @@ export class RootFactsService {
     this.isModelLoaded = false;
     this.isGenerating = false;
     this.currentTone = TONE_CONFIG.defaultTone;
-    
+
     // Konfigurasi lingkungan Transformers.js
     env.allowLocalModels = false;
     env.useBrowserCache = true;
@@ -20,7 +20,7 @@ export class RootFactsService {
   async loadModel(onProgress) {
     try {
       const device = isWebGPUSupported() ? 'webgpu' : 'webgl';
-      
+
       this.generator = await pipeline('text2text-generation', 'Xenova/flan-t5-small', {
         device: device,
         progress_callback: (progress) => {
@@ -54,7 +54,7 @@ export class RootFactsService {
 
     try {
       this.isGenerating = true;
-      
+
       // [Skilled] Mengatur parameter temperature, max_new_tokens, top_p, dan do_sample
       const result = await this.generator(prompt, {
         max_new_tokens: 50,
@@ -74,15 +74,15 @@ export class RootFactsService {
 
   _getToneInstruction(tone) {
     switch (tone) {
-      case 'funny':
-        return 'Make it sound funny and witty.';
-      case 'professional':
-        return 'Make it sound formal and scientific.';
-      case 'casual':
-        return 'Make it sound friendly and casual.';
-      case 'normal':
-      default:
-        return 'Make it informative.';
+    case 'funny':
+      return 'Make it sound funny and witty.';
+    case 'professional':
+      return 'Make it sound formal and scientific.';
+    case 'casual':
+      return 'Make it sound friendly and casual.';
+    case 'normal':
+    default:
+      return 'Make it informative.';
     }
   }
 

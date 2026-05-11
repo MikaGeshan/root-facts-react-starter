@@ -19,7 +19,7 @@ export class CameraService {
   async loadCameras() {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      return devices.filter(device => device.kind === 'videoinput');
+      return devices.filter((device) => device.kind === 'videoinput');
     } catch (error) {
       console.error('Error loading cameras:', error);
       return [];
@@ -54,7 +54,7 @@ export class CameraService {
   // [Basic] Menghentikan siaran kamera dan membersihkan sumber daya
   stopCamera() {
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
     if (this.video) {
@@ -68,7 +68,7 @@ export class CameraService {
     if (this.stream) {
       const track = this.stream.getVideoTracks()[0];
       if (track) {
-        track.applyConstraints({ frameRate: { ideal: fps } }).catch(e => {
+        track.applyConstraints({ frameRate: { ideal: fps } }).catch((e) => {
           console.warn('Failed to apply FPS constraints:', e);
         });
       }

@@ -59,7 +59,7 @@ export class DetectionService {
 
       const prediction = this.model.predict(tensor);
       const probabilities = prediction.dataSync();
-      
+
       const maxProbability = Math.max(...probabilities);
       const classIndex = probabilities.indexOf(maxProbability);
 
