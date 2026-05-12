@@ -54,6 +54,7 @@ export class RootFactsService {
 
     try {
       this.isGenerating = true;
+      console.log(`[AI Service] Generating facts with prompt: "${prompt}"`);
 
       // [Skilled] Mengatur parameter temperature, max_new_tokens, top_p, dan do_sample
       const result = await this.generator(prompt, {
@@ -63,8 +64,11 @@ export class RootFactsService {
         do_sample: true,
       });
 
+      const generatedText = result[0].generated_text;
+      console.log(`[AI Service] Generation complete: "${generatedText}"`);
+
       this.isGenerating = false;
-      return result[0].generated_text;
+      return generatedText;
     } catch (error) {
       this.isGenerating = false;
       console.error('Fact generation error:', error);

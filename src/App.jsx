@@ -85,23 +85,33 @@ function App() {
     if (!detector || !camera || !isRunningRef.current) return;
 
     // [Skilled] Fitur FPS Limit: Throttling detection loop
-    // Tambahkan delay minimum 100ms agar CPU tidak membengkak
-    const interval = Math.max(1000 / fps, 100);
+    // [Solution] Meningkatkan delay minimum ke 200ms (5 FPS) agar tidak terlalu dinamis
+    const interval = Math.max(1000 / fps, 200);
     if (time - lastDetectionTimeRef.current >= interval) {
       lastDetectionTimeRef.current = time;
+
+      // [Solution] Jangan lakukan deteksi jika sedang dalam proses analisis atau sudah ada hasil
+      if (isAnalyzingRef.current || state.appState === 'result') {
+        if (isRunningRef.current) {
+          detectionCleanupRef.current = requestAnimationFrame(runDetectionLoop);
+        }
+        return;
+      }
 
       if (camera.isReady()) {
         try {
           const result = await detector.predict(camera.video);
           if (result) {
-            // [Basic] Menampilkan label hasil prediksi secara otomatis
-            // Hanya update hasil deteksi ke UI jika belum dalam proses analisis untuk mengurangi volatilitas
-            if (!isAnalyzingRef.current && state.appState !== 'result') {
+            const isConfident = isValidDetection(result);
+            
+            // [Debugging] Lacak alur proses deteksi
+            console.log(`[Detection] Class: ${result.className}, Score: ${(result.score * 100).toFixed(2)}%, Stable: ${stabilityCounterRef.current}`);
+
+            // [Solution] Stabilisasi label UI: Hanya update jika deteksi cukup yakin (confident)
+            // Ini mencegah teks klasifikasi berubah-ubah terlalu cepat saat objek belum stabil
+            if (isConfident && !isAnalyzingRef.current && state.appState !== 'result') {
               actions.setDetectionResult(result);
             }
-
-            // [Solution] Implementasi Stability Buffer untuk mencegah hasil yang terlalu dinamis
-            const isConfident = isValidDetection(result);
 
             if (isConfident && state.appState === 'idle' && !isAnalyzingRef.current) {
               // Cek apakah objek sama dengan deteksi sebelumnya
@@ -112,18 +122,22 @@ function App() {
                 lastDetectedClassRef.current = result.className;
               }
 
-              // [Skilled] Membutuhkan setidaknya 5 frame stabil (sekitar 0.5-1 detik) sebelum trigger AI
-              if (stabilityCounterRef.current >= 5) {
+              // [Skilled] Membutuhkan stabilitas frame yang lebih tinggi (berdasarkan APP_CONFIG.stabilityThreshold)
+              // sebelum melakukan trigger AI Generative
+              if (stabilityCounterRef.current >= APP_CONFIG.stabilityThreshold) {
+                console.log(`[System] Object stable! Triggering AI for: ${result.className}`);
                 isAnalyzingRef.current = true;
                 actions.setAppState('analyzing');
 
                 // [Solution] Tambahkan delay sebelum generate untuk memastikan UI transisi dengan mulus
-                // dan memberikan waktu bagi pengguna untuk menstabilkan kamera
+                // Memberikan waktu bagi pengguna untuk menyadari bahwa objek telah terkunci
                 await new Promise((resolve) => setTimeout(resolve, APP_CONFIG.analyzingDelay));
 
                 try {
+                  console.log(`[AI] Generating facts for ${result.className}...`);
                   // Berhasil menampilkan teks Fun Fact unik yang relevan
                   const fact = await generator.generateFacts(result.className);
+                  console.log(`[AI] Facts generated successfully`);
 
                   // Pastikan kita masih dalam mode scanning sebelum mengupdate hasil
                   if (isRunningRef.current) {
@@ -133,7 +147,7 @@ function App() {
                     stopCamera();
                   }
                 } catch (error) {
-                  console.error('Fact generation failed:', error);
+                  console.error('[AI] Fact generation failed:', error);
                   actions.setFunFactData('error');
                   actions.setAppState('result');
                   stopCamera();
@@ -147,7 +161,7 @@ function App() {
             }
           }
         } catch (error) {
-          console.error('Detection error:', error);
+          console.error('[System] Detection error:', error);
         }
       }
     }

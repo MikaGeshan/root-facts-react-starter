@@ -1,8 +1,9 @@
 export const APP_CONFIG = {
-  detectionConfidenceThreshold: 70,
-  analyzingDelay: 2000,
+  detectionConfidenceThreshold: 75,
+  analyzingDelay: 2500,
   factsGenerationDelay: 2000,
-  detectionRetryInterval: 100
+  detectionRetryInterval: 200,
+  stabilityThreshold: 10 // Membutuhkan 10 frame stabil sebelum trigger AI
 };
 
 export const TONE_CONFIG = {

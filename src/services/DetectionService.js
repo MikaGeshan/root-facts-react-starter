@@ -62,9 +62,12 @@ export class DetectionService {
 
       const maxProbability = Math.max(...probabilities);
       const classIndex = probabilities.indexOf(maxProbability);
+      const className = this.labels[classIndex];
+
+      console.log(`[Model] Raw Prediction: ${className} (${(maxProbability * 100).toFixed(2)}%)`);
 
       return {
-        className: this.labels[classIndex],
+        className: className,
         score: maxProbability,
         isValid: maxProbability > 0.5
       };
