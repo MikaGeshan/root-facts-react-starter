@@ -1,0 +1,9 @@
+/*
+  X-Content-Type-Options: nosniff
+  Access-Control-Allow-Origin: *
+
+/*.wasm
+  Content-Type: application/wasm
+
+/*.bin
+  Content-Type: application/octet-stream
