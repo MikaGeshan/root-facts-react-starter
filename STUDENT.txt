@@ -1,1 +1,1 @@
-APP_URL=https://poetic-macaron-69ae49.netlify.app/
+APP_URL=https://rootfactsdicoding.netlify.app/

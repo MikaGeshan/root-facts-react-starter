@@ -107,9 +107,9 @@ function App() {
             // [Debugging] Lacak alur proses deteksi
             console.log(`[Detection] Class: ${result.className}, Score: ${(result.score * 100).toFixed(2)}%, Stable: ${stabilityCounterRef.current}`);
 
-            // [Solution] Stabilisasi label UI: Hanya update jika deteksi cukup yakin (confident)
-            // Ini mencegah teks klasifikasi berubah-ubah terlalu cepat saat objek belum stabil
-            if (isConfident && !isAnalyzingRef.current && state.appState !== 'result') {
+            // [Solution] Stabilisasi label UI: Hanya update jika deteksi valid (>50%)
+            // Ini memungkinkan pengguna melihat hasil deteksi meskipun belum mencapai ambang batas stabilitas
+            if (result.isValid && !isAnalyzingRef.current && state.appState !== 'result') {
               actions.setDetectionResult(result);
             }
 
@@ -260,6 +260,7 @@ function App() {
         />
 
         <InfoPanel
+          isRunning={state.isRunning}
           appState={state.appState}
           detectionResult={state.detectionResult}
           funFactData={state.funFactData}

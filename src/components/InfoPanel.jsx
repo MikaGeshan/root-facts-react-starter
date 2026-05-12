@@ -1,24 +1,53 @@
 import { Sparkles, Search, CheckCircle, Lightbulb, Copy, Share2, RotateCcw } from 'lucide-react';
 
-function InfoPanel({ appState, detectionResult, funFactData, error, onCopyFact, onRestartScan }) {
+function InfoPanel({ isRunning, appState, detectionResult, funFactData, error, onCopyFact, onRestartScan }) {
   const isIdle = appState === 'idle';
   const isAnalyzing = appState === 'analyzing';
   const isResult = appState === 'result';
 
-  const renderIdleState = () => (
-    <div id="state-idle" className="result-card idle-card">
-      <div className="idle-icon">
-        <Sparkles size={40} />
+  const renderIdleState = () => {
+    if (isRunning) {
+      return (
+        <div id="state-scanning" className="result-card idle-card">
+          <div className="loading-animation" style={{ marginBottom: '1rem' }}>
+            <div className="loading-ring"></div>
+            <div className="loading-icon">
+              <Search size={24} />
+            </div>
+          </div>
+          <h2>Sedang Memindai...</h2>
+          {detectionResult ? (
+            <div className="fadeIn" style={{ marginTop: '1rem' }}>
+              <div className="detected-badge">
+                <CheckCircle size={14} />
+                <span id="detected-name">{detectionResult.className}</span>
+              </div>
+              <p style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--text-secondary)' }}>
+                Tingkat Kepercayaan: {Math.round(detectionResult.score * 100)}%
+              </p>
+            </div>
+          ) : (
+            <p>Arahkan kamera ke sayuran untuk mendeteksi</p>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div id="state-idle" className="result-card idle-card">
+        <div className="idle-icon">
+          <Sparkles size={40} />
+        </div>
+        <h2>Scan Sayuran</h2>
+        <p>Ketuk tombol di bawah untuk memulai dan temukan fakta menarik tentang sayuran!</p>
+        {error && (
+          <p style={{ color: '#ef4444', fontSize: '0.8125rem', marginTop: '1rem' }}>
+            {error}
+          </p>
+        )}
       </div>
-      <h2>Scan Sayuran</h2>
-      <p>Ketuk tombol di bawah untuk memulai dan temukan fakta menarik tentang sayuran!</p>
-      {error && (
-        <p style={{ color: '#ef4444', fontSize: '0.8125rem', marginTop: '1rem' }}>
-          {error}
-        </p>
-      )}
-    </div>
-  );
+    );
+  };
 
   const renderAnalyzingState = () => (
     <div id="state-loading" className="result-card loading-card">
@@ -28,8 +57,8 @@ function InfoPanel({ appState, detectionResult, funFactData, error, onCopyFact, 
           <Search size={24} />
         </div>
       </div>
-      <h2>Mencari...</h2>
-      <p>Sedang mengidentifikasi sayuran Anda</p>
+      <h2>Menganalisis {detectionResult?.className}...</h2>
+      <p>Sedang mengidentifikasi sayuran dan mengambil fakta menarik</p>
     </div>
   );
 
