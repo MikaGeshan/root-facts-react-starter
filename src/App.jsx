@@ -21,6 +21,18 @@ function App() {
   const [fps, setFps] = useState(15);
   const lastDetectionTimeRef = useRef(0);
 
+  // [Advance] Gunakan Ref untuk menghindari stale closure dalam loop async/RAF
+  // Ini memastikan loop deteksi selalu menggunakan state terbaru tanpa perlu recreations
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const fpsRef = useRef(fps);
+  useEffect(() => {
+    fpsRef.current = fps;
+  }, [fps]);
+
   // [Basic] Inisialisasi layanan deteksi, kamera, dan generator fakta saat aplikasi dimuat
   useEffect(() => {
     const detector = new DetectionService();
@@ -63,7 +75,7 @@ function App() {
 
   // [Basic] Fungsi untuk menghentikan kamera dan loop deteksi
   const stopCamera = useCallback(() => {
-    const { camera } = state.services;
+    const { camera } = stateRef.current.services;
     isRunningRef.current = false;
     isAnalyzingRef.current = false;
     stabilityCounterRef.current = 0;
@@ -77,21 +89,22 @@ function App() {
       camera.stopCamera();
     }
     actions.setRunning(false);
-  }, [state.services, actions]);
+  }, [actions]);
 
   // [Basic] Fungsi untuk memulai loop deteksi
   const runDetectionLoop = useCallback(async (time) => {
-    const { detector, camera, generator } = state.services;
+    const { detector, camera, generator } = stateRef.current.services;
+    const currentAppState = stateRef.current.appState;
+
     if (!detector || !camera || !isRunningRef.current) return;
 
     // [Skilled] Fitur FPS Limit: Throttling detection loop
-    // [Solution] Meningkatkan delay minimum ke 200ms (5 FPS) agar tidak terlalu dinamis
-    const interval = Math.max(1000 / fps, 200);
+    const interval = Math.max(1000 / fpsRef.current, 200);
     if (time - lastDetectionTimeRef.current >= interval) {
       lastDetectionTimeRef.current = time;
 
       // [Solution] Jangan lakukan deteksi jika sedang dalam proses analisis atau sudah ada hasil
-      if (isAnalyzingRef.current || state.appState === 'result') {
+      if (isAnalyzingRef.current || currentAppState === 'result') {
         if (isRunningRef.current) {
           detectionCleanupRef.current = requestAnimationFrame(runDetectionLoop);
         }
@@ -109,11 +122,11 @@ function App() {
 
             // [Solution] Stabilisasi label UI: Hanya update jika deteksi valid (>50%)
             // Ini memungkinkan pengguna melihat hasil deteksi meskipun belum mencapai ambang batas stabilitas
-            if (result.isValid && !isAnalyzingRef.current && state.appState !== 'result') {
+            if (result.isValid && !isAnalyzingRef.current && currentAppState !== 'result') {
               actions.setDetectionResult(result);
             }
 
-            if (isConfident && state.appState === 'idle' && !isAnalyzingRef.current) {
+            if (isConfident && currentAppState === 'idle' && !isAnalyzingRef.current) {
               // Cek apakah objek sama dengan deteksi sebelumnya
               if (result.className === lastDetectedClassRef.current) {
                 stabilityCounterRef.current += 1;
@@ -169,17 +182,19 @@ function App() {
     if (isRunningRef.current) {
       detectionCleanupRef.current = requestAnimationFrame(runDetectionLoop);
     }
-  }, [state.services, state.appState, actions, fps, stopCamera]);
+  }, [actions, stopCamera]);
 
   // [Basic] Fungsi untuk memulai dan menghentikan kamera
   const handleToggleCamera = useCallback(async () => {
-    const { camera } = state.services;
+    const { camera } = stateRef.current.services;
+    const isRunning = stateRef.current.isRunning;
+
     if (!camera) {
       console.error('Camera service not initialized');
       return;
     }
 
-    if (state.isRunning) {
+    if (isRunning) {
       console.log('Stopping camera...');
       stopCamera();
       actions.resetResults();
@@ -223,20 +238,21 @@ function App() {
         actions.setError(getCameraErrorMessage(error));
       }
     }
-  }, [state.services, state.isRunning, actions, stopCamera, runDetectionLoop]);
+  }, [actions, stopCamera, runDetectionLoop]);
 
   // [Advance] Fungsi untuk mengubah nada fakta yang dihasilkan
   const handleToneChange = (tone) => {
     setCurrentTone(tone);
-    if (state.services.generator) {
-      state.services.generator.setTone(tone);
+    if (stateRef.current.services.generator) {
+      stateRef.current.services.generator.setTone(tone);
     }
   };
 
   // [Skilled] Fungsi untuk menyalin fakta ke clipboard
   const handleCopyFact = () => {
-    if (state.funFactData && state.funFactData !== 'error') {
-      navigator.clipboard.writeText(state.funFactData)
+    const { funFactData } = stateRef.current;
+    if (funFactData && funFactData !== 'error') {
+      navigator.clipboard.writeText(funFactData)
         .then(() => alert('Fakta berhasil disalin!'))
         .catch((err) => console.error('Gagal menyalin:', err));
     }
